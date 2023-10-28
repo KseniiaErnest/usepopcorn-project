@@ -81,12 +81,14 @@ setSelectedId((selectedId) => (id === selectedId ? null : id));
 
     useEffect(
       function () {
+        const controller = new AbortController();
+
         async function fetchMovies() {
           try {
             setIsLoading(true);
             setError('');
-          // const res = await fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=${tempQuery}`);
-          const res = await fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=${query}`);
+          const res = await fetch(`http://www.omdbapi.com/?apikey=${KEY}&s=${query}`, {signal: controller.signal}
+          );
   
           if (!res.ok) throw new Error('Something went wrong with fetching movies');
 
@@ -95,9 +97,13 @@ setSelectedId((selectedId) => (id === selectedId ? null : id));
           if (data.Response === 'False') throw new Error('Movie not found');
   
           setMovies(data.Search);
+          setError('');
           
           } catch (err) {
-            setError(err.message);
+            if(err.name !== 'AbortError') {
+              setError(err.message);
+            }
+            
           } finally {
             setIsLoading(false);
           }
@@ -110,7 +116,12 @@ setSelectedId((selectedId) => (id === selectedId ? null : id));
           return;
         }
 
+        handleCloseMovie();
         fetchMovies();
+
+        return function() {
+          controller.abort();
+        }
       },
       [query]
     );
@@ -345,13 +356,33 @@ useEffect(
 
 useEffect(function() {
   if(!title) return;
+
+document.title = `Movie | ${title}`;
+
+return function() {
+  document.title = 'usePopcorn';
+};
+
+}, 
+[title]
+);
+
+useEffect(function() {
+
+  function callback (e) {
+    if(e.code === 'Escape') {
+      onCloseMovie();
+    }
+  }
   
-document.title = `Movie | ${title}`
-}, [title])
+  document.addEventListener('keydown', callback)
+
+  return function() {
+    document.removeEventListener('keydown', callback );
+  }
+      }, [onCloseMovie]);
 
 const handleAdd = () => {
-  console.log("Runtime:", runtime); // Add this line
-
 const newWatchedMovie = {
   imdbID: selectedId,
       title,
